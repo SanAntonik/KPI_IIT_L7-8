@@ -1,7 +1,11 @@
 import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from prometheus_client import start_http_server, Counter
 from fluent import sender
+
+# Prometheus metrics
+REQUEST_COUNTER = Counter('http_requests_total', 'Total HTTP Requests')
 
 fluentd_tag = 'my_app.logs'
 fluentd_host = '127.0.0.1'
@@ -14,6 +18,7 @@ logger.emit('log', {'message': 'Log message'})
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/':
+            REQUEST_COUNTER.inc()  # Increment the request counter
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
@@ -68,6 +73,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path == '/log_event':
+            REQUEST_COUNTER.inc()  # Increment the request counter
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             event_name = post_data.decode('utf-8')
@@ -84,6 +90,8 @@ def run_server():
     server_address = ('', 8000)
     httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
     print('Server running on http://127.0.0.1:8000')
+    # Start Prometheus metrics endpoint
+    start_http_server(9090)
     httpd.serve_forever()
 
 
